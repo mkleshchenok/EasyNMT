@@ -21,7 +21,7 @@ mnli_max_sentences = 1000
 snli = 0
 mnli = 0
 
-#Download datasets if needed
+# Download datasets if needed
 if not os.path.exists(nli_dataset_path):
     util.http_get('https://sbert.net/datasets/AllNLI.tsv.gz', nli_dataset_path)
 
@@ -47,12 +47,15 @@ with gzip.open(nli_dataset_path, 'rt', encoding='utf8') as fIn:
 print("Sentences:", len(sentences))
 sentences = list(sentences)
 
-    
-#Some warm up
-model.translate(sentences[0:100], source_lang='en', target_lang='de', perform_sentence_splitting=False)
 
-#Start translation speed measure
+# Some warm up
+model.translate(sentences[0:100], source_lang='en',
+                target_lang='de', perform_sentence_splitting=False)
+
+# Start translation speed measure
 start_time = time.time()
-model.translate(sentences, source_lang='en', target_lang='de', batch_size=64, show_progress_bar=True, perform_sentence_splitting=False)
+model.translate(sentences, source_lang='en', target_lang='de', batch_size=64,
+                show_progress_bar=True, perform_sentence_splitting=False)
 end_time = time.time()
-print("Done after {:.2f} sec. {:.2f} sentences / second".format(end_time-start_time, len(sentences) / (end_time-start_time)))
+print("Done after {:.2f} sec. {:.2f} sentences / second".format(end_time -
+      start_time, len(sentences) / (end_time-start_time)))

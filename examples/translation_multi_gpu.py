@@ -13,7 +13,6 @@ import time
 import logging
 
 
-
 if __name__ == '__main__':
     logging.basicConfig(
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -34,7 +33,8 @@ if __name__ == '__main__':
 
     # Download datasets if needed
     if not os.path.exists(nli_dataset_path):
-        util.http_get('https://sbert.net/datasets/AllNLI.tsv.gz', nli_dataset_path)
+        util.http_get('https://sbert.net/datasets/AllNLI.tsv.gz',
+                      nli_dataset_path)
 
     with gzip.open(nli_dataset_path, 'rt', encoding='utf8') as fIn:
         reader = csv.DictReader(fIn, delimiter='\t', quoting=csv.QUOTE_NONE)
@@ -57,19 +57,21 @@ if __name__ == '__main__':
     print("Sentences:", len(sentences))
     sentences = list(sentences)
 
-    ######## Multi-Process-Translation
+    # Multi-Process-Translation
     # You can pass a target_devices parameter to the start_multi_process_pool() method to define how many processes to start
     # and on which devices the processes should run
     process_pool = model.start_multi_process_pool(['cuda', 'cuda'])
 
-    #Do some warm-up
-    model.translate_multi_process(process_pool, sentences[0:100], source_lang='en', target_lang='de', show_progress_bar=False)
+    # Do some warm-up
+    model.translate_multi_process(
+        process_pool, sentences[0:100], source_lang='en', target_lang='de', show_progress_bar=False)
 
     # Start translation speed measure - Multi process
     start_time = time.time()
-    translations_multi_p = model.translate_multi_process(process_pool, sentences, source_lang='en', target_lang='de', show_progress_bar=True)
+    translations_multi_p = model.translate_multi_process(
+        process_pool, sentences, source_lang='en', target_lang='de', show_progress_bar=True)
     end_time = time.time()
-    print("Multi-Process translation done after {:.2f} sec. {:.2f} sentences / second".format(end_time - start_time, len(sentences) / (end_time - start_time)))
-
+    print("Multi-Process translation done after {:.2f} sec. {:.2f} sentences / second".format(
+        end_time - start_time, len(sentences) / (end_time - start_time)))
 
     model.stop_multi_process_pool(process_pool)

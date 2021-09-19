@@ -32,25 +32,29 @@ class OpusMT:
                         oldest_time = self.models[loaded_model_name]['last_loaded']
                 del self.models[oldest_model]
 
-            self.models[model_name] = {'tokenizer': tokenizer, 'model': model, 'last_loaded': time.time()}
+            self.models[model_name] = {
+                'tokenizer': tokenizer, 'model': model, 'last_loaded': time.time()}
             return tokenizer, model
 
     def translate_sentences(self, sentences: List[str], source_lang: str, target_lang: str, device: str, beam_size: int = 5, **kwargs):
-        model_name = 'Helsinki-NLP/opus-mt-{}-{}'.format(source_lang, target_lang)
+        model_name = 'Helsinki-NLP/opus-mt-{}-{}'.format(
+            source_lang, target_lang)
         tokenizer, model = self.load_model(model_name)
         model.to(device)
 
-        inputs = tokenizer(sentences, truncation=True, padding=True, max_length=self.max_length, return_tensors="pt")
+        inputs = tokenizer(sentences, truncation=True, padding=True,
+                           max_length=self.max_length, return_tensors="pt")
 
         for key in inputs:
             inputs[key] = inputs[key].to(device)
 
         with torch.no_grad():
-            translated = model.generate(**inputs, num_beams=beam_size, **kwargs)
-            output = [tokenizer.decode(t, skip_special_tokens=True) for t in translated]
+            translated = model.generate(
+                **inputs, num_beams=beam_size, **kwargs)
+            output = [tokenizer.decode(t, skip_special_tokens=True)
+                      for t in translated]
 
         return output
 
     def save(self, output_path):
         return {"max_loaded_models": self.max_loaded_models}
-

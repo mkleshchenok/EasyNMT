@@ -4,7 +4,6 @@ from typing import List
 import logging
 
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -29,8 +28,8 @@ class AutoModel:
             tokenizer_name = easynmt_path
 
         self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, **self.tokenizer_args)
-
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer_name, **self.tokenizer_args)
 
     def translate_sentences(self, sentences: List[str], source_lang: str, target_lang: str, device: str, beam_size: int = 5, **kwargs):
         self.model.to(device)
@@ -42,7 +41,8 @@ class AutoModel:
             target_lang = self.lang_map[target_lang]
 
         self.tokenizer.src_lang = source_lang
-        inputs = self.tokenizer(sentences, truncation=True, padding=True, return_tensors="pt")
+        inputs = self.tokenizer(
+            sentences, truncation=True, padding=True, return_tensors="pt")
 
         for key in inputs:
             inputs[key] = inputs[key].to(device)
@@ -50,8 +50,10 @@ class AutoModel:
         with torch.no_grad():
             if hasattr(self.tokenizer, 'lang_code_to_id'):
                 kwargs['forced_bos_token_id'] = self.tokenizer.lang_code_to_id[target_lang]
-            translated = self.model.generate(**inputs, num_beams=beam_size, **kwargs)
-            output = [self.tokenizer.decode(t, skip_special_tokens=True) for t in translated]
+            translated = self.model.generate(
+                **inputs, num_beams=beam_size, **kwargs)
+            output = [self.tokenizer.decode(
+                t, skip_special_tokens=True) for t in translated]
 
         return output
 

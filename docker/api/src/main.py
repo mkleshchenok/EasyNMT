@@ -11,8 +11,6 @@ import requests
 import http3
 
 
-
-
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -23,7 +21,6 @@ app.add_middleware(
 )
 
 
-
 IS_BACKEND = os.getenv('ROLE', 'FRONT') == 'BACKEND'
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8080')
 
@@ -32,9 +29,8 @@ print("Booted as backend: {}".format(IS_BACKEND))
 
 model_name = os.getenv('EASYNMT_MODEL', 'opus-mt')
 model_args = json.loads(os.getenv('EASYNMT_MODEL_ARGS', '{}'))
-print("Load model: "+ model_name)
+print("Load model: " + model_name)
 model = EasyNMT(model_name, load_translator=IS_BACKEND, **model_args)
-
 
 
 @app.get("/translate")
@@ -51,7 +47,8 @@ async def translate(target_lang: str, text: List[str] = Query([]), source_lang: 
 
     if not IS_BACKEND:
         async_client = http3.AsyncClient()
-        data = {'target_lang': target_lang, 'text': text, 'source_lang': source_lang, 'beam_size': beam_size, 'perform_sentence_splitting': perform_sentence_splitting}
+        data = {'target_lang': target_lang, 'text': text, 'source_lang': source_lang,
+                'beam_size': beam_size, 'perform_sentence_splitting': perform_sentence_splitting}
         x = await async_client.post(BACKEND_URL+'/translate', json=data, timeout=3600)
         if x.status_code != 200:
             error_msg = "Error: " + x.text
@@ -64,9 +61,10 @@ async def translate(target_lang: str, text: List[str] = Query([]), source_lang: 
         return x.json()
 
     else:
-        #Check input parameters
+        # Check input parameters
         if 'EASYNMT_MAX_TEXT_LEN' in os.environ and len(text) > int(os.getenv('EASYNMT_MAX_TEXT_LEN')):
-            raise ValueError("Text was too long. Only texts up to {} characters are allowed".format(os.getenv('EASYNMT_MAX_TEXT_LEN')))
+            raise ValueError("Text was too long. Only texts up to {} characters are allowed".format(
+                os.getenv('EASYNMT_MAX_TEXT_LEN')))
 
         if beam_size < 1 or ('EASYNMT_MAX_BEAM_SIZE' in os.environ and beam_size > int(os.getenv('EASYNMT_MAX_BEAM_SIZE'))):
             raise ValueError("Illegal beam size")
@@ -74,20 +72,19 @@ async def translate(target_lang: str, text: List[str] = Query([]), source_lang: 
         if len(source_lang.strip()) == 0:
             source_lang = None
 
-        #Start the translation
+        # Start the translation
         start_time = time.time()
         output = {"target_lang": target_lang, "source_lang": source_lang}
-
 
         if source_lang is None:
             detected_langs = model.language_detection(text)
             output['detected_langs'] = detected_langs
-            #TODO Grouping and individual translation
-            #Exception: add original text
-
+            # TODO Grouping and individual translation
+            # Exception: add original text
 
         try:
-            output['translated'] = model.translate(text, target_lang=target_lang, source_lang=source_lang, beam_size=beam_size, perform_sentence_splitting=perform_sentence_splitting, batch_size=int(os.getenv('EASYNMT_BATCH_SIZE', 16)))
+            output['translated'] = model.translate(text, target_lang=target_lang, source_lang=source_lang, beam_size=beam_size,
+                                                   perform_sentence_splitting=perform_sentence_splitting, batch_size=int(os.getenv('EASYNMT_BATCH_SIZE', 16)))
         except Exception as e:
             raise HTTPException(403, detail="Error: "+str(e))
 
@@ -125,7 +122,6 @@ async def get_languages(source_lang: Optional[str] = None, target_lang: Optional
     return model.get_languages(source_lang=source_lang, target_lang=target_lang)
 
 
-
 @app.get("/language_detection")
 async def language_detection(text: str):
     """
@@ -149,8 +145,6 @@ async def language_detection_post(request: Request):
     elif isinstance(data['text'], dict):
         return {k: model.language_detection(t) for k, t in data['text'].items()}
     return model.language_detection(data['text'])
-
-
 
 
 @app.get("/model_name")

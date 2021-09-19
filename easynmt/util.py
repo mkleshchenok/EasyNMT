@@ -4,6 +4,7 @@ import requests
 import importlib
 import sys
 
+
 def http_get(url, path):
     """
     Downloads a URL to a given path on disc
@@ -13,7 +14,8 @@ def http_get(url, path):
 
     req = requests.get(url, stream=True)
     if req.status_code != 200:
-        print("Exception when trying to download {}. Response {}".format(url, req.status_code), file=sys.stderr)
+        print("Exception when trying to download {}. Response {}".format(
+            url, req.status_code), file=sys.stderr)
         req.raise_for_status()
         return
 
@@ -23,24 +25,26 @@ def http_get(url, path):
         total = int(content_length) if content_length is not None else None
         progress = tqdm.tqdm(unit="B", total=total, unit_scale=True)
         for chunk in req.iter_content(chunk_size=1024):
-            if chunk: # filter out keep-alive new chunks
+            if chunk:  # filter out keep-alive new chunks
                 progress.update(len(chunk))
                 file_binary.write(chunk)
 
     os.rename(download_filepath, path)
     progress.close()
 
-def fullname(o):
-  """
-  Gives a full name (package_name.class_name) for a class / object in Python. Will
-  be used to load the correct classes from JSON files
-  """
 
-  module = o.__class__.__module__
-  if module is None or module == str.__class__.__module__:
-    return o.__class__.__name__  # Avoid reporting __builtin__
-  else:
-    return module + '.' + o.__class__.__name__
+def fullname(o):
+    """
+    Gives a full name (package_name.class_name) for a class / object in Python. Will
+    be used to load the correct classes from JSON files
+    """
+
+    module = o.__class__.__module__
+    if module is None or module == str.__class__.__module__:
+        return o.__class__.__name__  # Avoid reporting __builtin__
+    else:
+        return module + '.' + o.__class__.__name__
+
 
 def import_from_string(dotted_path):
     """
@@ -58,17 +62,19 @@ def import_from_string(dotted_path):
     try:
         return getattr(module, class_name)
     except AttributeError:
-        msg = 'Module "%s" does not define a "%s" attribute/class' % (module_path, class_name)
+        msg = 'Module "%s" does not define a "%s" attribute/class' % (
+            module_path, class_name)
         raise ImportError(msg)
 
-def fullname(o):
-  """
-  Gives a full name (package_name.class_name) for a class / object in Python. Will
-  be used to load the correct classes from JSON files
-  """
 
-  module = o.__class__.__module__
-  if module is None or module == str.__class__.__module__:
-    return o.__class__.__name__  # Avoid reporting __builtin__
-  else:
-    return module + '.' + o.__class__.__name__
+def fullname(o):
+    """
+    Gives a full name (package_name.class_name) for a class / object in Python. Will
+    be used to load the correct classes from JSON files
+    """
+
+    module = o.__class__.__module__
+    if module is None or module == str.__class__.__module__:
+        return o.__class__.__name__  # Avoid reporting __builtin__
+    else:
+        return module + '.' + o.__class__.__name__
