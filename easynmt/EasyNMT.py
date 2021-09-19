@@ -17,6 +17,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
+
 class EasyNMT:
     def __init__(self, model_name: str = None, cache_folder: str = None, translator=None, load_translator: bool = True, device=None, max_length: int = None, **kwargs):
         """
@@ -31,7 +32,8 @@ class EasyNMT:
         """
         self._model_name = model_name
         self._fasttext_lang_id = None
-        self._lang_detectors = [self.language_detection_fasttext, self.language_detection_langid, self.language_detection_langdetect]
+        self._lang_detectors = [self.language_detection_fasttext,
+                                self.language_detection_langid, self.language_detection_langdetect]
         self._lang_pairs = frozenset()
 
         if device is None:
@@ -44,7 +46,8 @@ class EasyNMT:
             if 'EASYNMT_CACHE' in os.environ:
                 cache_folder = os.environ['EASYNMT_CACHE']
             else:
-                cache_folder = os.path.join(torch.hub._get_torch_home(), 'easynmt_v2')
+                cache_folder = os.path.join(
+                    torch.hub._get_torch_home(), 'easynmt_v2')
         self._cache_folder = cache_folder
 
         if translator is not None:
@@ -57,13 +60,16 @@ class EasyNMT:
                 model_path = os.path.join(cache_folder, model_name)
 
                 if not os.path.exists(model_path) or not os.listdir(model_path):
-                    logger.info("Downloading EasyNMT model {} and saving it at {}".format(model_name, model_path))
+                    logger.info("Downloading EasyNMT model {} and saving it at {}".format(
+                        model_name, model_path))
 
-                    model_path_tmp = model_path.rstrip("/").rstrip("\\") + "_part"
+                    model_path_tmp = model_path.rstrip(
+                        "/").rstrip("\\") + "_part"
                     os.makedirs(model_path_tmp, exist_ok=True)
 
-                    #Download easynmt.json
-                    config_url = __DOWNLOAD_SERVER__+"/{}/easynmt.json".format(model_name)
+                    # Download easynmt.json
+                    config_url = __DOWNLOAD_SERVER__ + \
+                        "/{}/easynmt.json".format(model_name)
                     config_path = os.path.join(model_path_tmp, 'easynmt.json')
                     http_get(config_url, config_path)
 
@@ -72,10 +78,12 @@ class EasyNMT:
 
                     if 'files' in downloaded_config:
                         for filename, url in downloaded_config['files'].items():
-                            logger.info("Download {} from {}".format(filename, url))
-                            http_get(url, os.path.join(model_path_tmp, filename))
+                            logger.info(
+                                "Download {} from {}".format(filename, url))
+                            http_get(url, os.path.join(
+                                model_path_tmp, filename))
 
-                    ##Rename tmp path
+                    # Rename tmp path
                     try:
                         os.rename(model_path_tmp, model_path)
                     except Exception:
@@ -89,11 +97,9 @@ class EasyNMT:
 
             if load_translator:
                 module_class = import_from_string(self.config['model_class'])
-                self.translator = module_class(easynmt_path=model_path, **self.config['model_args'])
+                self.translator = module_class(
+                    easynmt_path=model_path, **self.config['model_args'])
                 self.translator.max_length = max_length
-
-
-
 
     def translate(self, documents: Union[str, List[str]], target_lang: str, source_lang: str = None,
                   show_progress_bar: bool = False, beam_size: int = 5, batch_size: int = 16,
@@ -115,7 +121,7 @@ class EasyNMT:
         :return: Returns a string or a list of string with the translated documents
         """
 
-        #Method_args will store all passed arguments to method
+        # Method_args will store all passed arguments to method
         method_args = locals()
         del method_args['self']
         del method_args['kwargs']
@@ -131,7 +137,7 @@ class EasyNMT:
 
         if source_lang is None and document_language_detection:
             src_langs = [self.language_detection(doc) for doc in documents]
-            
+
             # Group by languages
             lang2id = {}
             for idx, lng in enumerate(src_langs):
@@ -158,7 +164,6 @@ class EasyNMT:
 
             return output
 
-
         if perform_sentence_splitting:
             if sentence_splitter is None:
                 sentence_splitter = self.sentence_splitting
@@ -168,7 +173,8 @@ class EasyNMT:
             splitted_sentences = []
             sent2doc = []
             for doc in documents:
-                paragraphs = doc.split(paragraph_split) if paragraph_split is not None else [doc]
+                paragraphs = doc.split(
+                    paragraph_split) if paragraph_split is not None else [doc]
                 for para in paragraphs:
                     for sent in sentence_splitter(para.strip(), source_lang):
                         sent = sent.strip()
@@ -178,7 +184,8 @@ class EasyNMT:
             #logger.info("Sentence splitting done after: {:.2f} sec".format(time.time() - start_time))
             #logger.info("Translate {} sentences".format(len(splitted_sentences)))
 
-            translated_sentences = self.translate_sentences(splitted_sentences, target_lang=target_lang, source_lang=source_lang, show_progress_bar=show_progress_bar, beam_size=beam_size, batch_size=batch_size, **kwargs)
+            translated_sentences = self.translate_sentences(splitted_sentences, target_lang=target_lang, source_lang=source_lang,
+                                                            show_progress_bar=show_progress_bar, beam_size=beam_size, batch_size=batch_size, **kwargs)
 
             # Merge sentences back to documents
             start_time = time.time()
@@ -186,11 +193,13 @@ class EasyNMT:
             for doc_idx in range(len(documents)):
                 start_idx = sent2doc[doc_idx - 1] if doc_idx > 0 else 0
                 end_idx = sent2doc[doc_idx]
-                translated_docs.append(self._reconstruct_document(documents[doc_idx], splitted_sentences[start_idx:end_idx], translated_sentences[start_idx:end_idx]))
+                translated_docs.append(self._reconstruct_document(
+                    documents[doc_idx], splitted_sentences[start_idx:end_idx], translated_sentences[start_idx:end_idx]))
 
             #logger.info("Document reconstruction done after: {:.2f} sec".format(time.time() - start_time))
         else:
-            translated_docs = self.translate_sentences(documents, target_lang=target_lang, source_lang=source_lang, show_progress_bar=show_progress_bar, beam_size=beam_size, batch_size=batch_size, **kwargs)
+            translated_docs = self.translate_sentences(documents, target_lang=target_lang, source_lang=source_lang,
+                                                       show_progress_bar=show_progress_bar, beam_size=beam_size, batch_size=batch_size, **kwargs)
 
         if is_single_doc:
             translated_docs = translated_docs[0]
@@ -217,7 +226,7 @@ class EasyNMT:
         return translated_doc
 
     def translate_sentences(self, sentences: Union[str, List[str]], target_lang: str, source_lang: str = None,
-                  show_progress_bar: bool = False, beam_size: int = 5, batch_size: int = 32, **kwargs):
+                            show_progress_bar: bool = False, beam_size: int = 5, batch_size: int = 32, **kwargs):
         """
         This method translates individual sentences.
 
@@ -240,11 +249,11 @@ class EasyNMT:
 
         output = []
         if source_lang is None:
-            #Determine languages for sentences
+            # Determine languages for sentences
             src_langs = [self.language_detection(sent) for sent in sentences]
             logger.info("Detected languages: {}".format(set(src_langs)))
 
-            #Group by languages
+            # Group by languages
             lang2id = {}
             for idx, lng in enumerate(src_langs):
                 if lng not in lang2id:
@@ -252,40 +261,41 @@ class EasyNMT:
 
                 lang2id[lng].append(idx)
 
-            #Translate language wise
+            # Translate language wise
             output = [None] * len(sentences)
             for lng, ids in lang2id.items():
                 logger.info("Translate sentences of language: {}".format(lng))
                 try:
                     grouped_sentences = [sentences[idx] for idx in ids]
-                    translated = self.translate_sentences(grouped_sentences, source_lang=lng, target_lang=target_lang, show_progress_bar=show_progress_bar, beam_size=beam_size, batch_size=batch_size, **kwargs)
+                    translated = self.translate_sentences(grouped_sentences, source_lang=lng, target_lang=target_lang,
+                                                          show_progress_bar=show_progress_bar, beam_size=beam_size, batch_size=batch_size, **kwargs)
                     for idx, translated_sentences in zip(ids, translated):
                         output[idx] = translated_sentences
                 except Exception as e:
                     logger.warning("Exception: "+str(e))
                     raise e
         else:
-            #Sort by length to speed up processing
+            # Sort by length to speed up processing
             length_sorted_idx = np.argsort([-len(sen) for sen in sentences])
             sentences_sorted = [sentences[idx] for idx in length_sorted_idx]
 
             iterator = range(0, len(sentences_sorted), batch_size)
             if show_progress_bar:
                 scale = min(batch_size, len(sentences))
-                iterator = tqdm.tqdm(iterator, total=len(sentences)/scale, unit_scale=scale, smoothing=0)
+                iterator = tqdm.tqdm(iterator, total=len(
+                    sentences)/scale, unit_scale=scale, smoothing=0)
 
             for start_idx in iterator:
-                output.extend(self.translator.translate_sentences(sentences_sorted[start_idx:start_idx+batch_size], source_lang=source_lang, target_lang=target_lang, beam_size=beam_size, device=self.device, **kwargs))
+                output.extend(self.translator.translate_sentences(
+                    sentences_sorted[start_idx:start_idx+batch_size], source_lang=source_lang, target_lang=target_lang, beam_size=beam_size, device=self.device, **kwargs))
 
-            #Restore original sorting of sentences
+            # Restore original sorting of sentences
             output = [output[idx] for idx in np.argsort(length_sorted_idx)]
 
         if is_single_sentence:
             output = output[0]
 
         return output
-
-
 
     def start_multi_process_pool(self, target_devices: List[str] = None):
         """
@@ -297,12 +307,14 @@ class EasyNMT:
         """
         if target_devices is None:
             if torch.cuda.is_available():
-                target_devices = ['cuda:{}'.format(i) for i in range(torch.cuda.device_count())]
+                target_devices = ['cuda:{}'.format(
+                    i) for i in range(torch.cuda.device_count())]
             else:
                 logger.info("CUDA is not available. Start 4 CPU worker")
                 target_devices = ['cpu'] * 4
 
-        logger.info("Start multi-process pool on devices: {}".format(', '.join(map(str, target_devices))))
+        logger.info(
+            "Start multi-process pool on devices: {}".format(', '.join(map(str, target_devices))))
 
         ctx = mp.get_context('spawn')
         input_queue = ctx.Queue()
@@ -310,13 +322,15 @@ class EasyNMT:
         processes = []
 
         for cuda_id in target_devices:
-            p = ctx.Process(target=EasyNMT._encode_multi_process_worker, args=(cuda_id, self, input_queue, output_queue), daemon=True)
+            p = ctx.Process(target=EasyNMT._encode_multi_process_worker, args=(
+                cuda_id, self, input_queue, output_queue), daemon=True)
             p.start()
             processes.append(p)
 
         return {'input': input_queue, 'output': output_queue, 'processes': processes}
 
-    def translate_multi_process(self, pool: Dict[str, object], documents: List[str], show_progress_bar: bool = True, chunk_size: int = None, **kwargs) -> List[str]:
+    @staticmethod
+    def translate_multi_process(pool: Dict[str, object], documents: List[str], show_progress_bar: bool = True, chunk_size: int = None, **kwargs) -> List[str]:
         """
         This method allows to run encode() on multiple GPUs. The sentences are chunked into smaller packages
         and sent to individual processes, which encode these on the different GPUs. This method is only suitable
@@ -326,7 +340,8 @@ class EasyNMT:
         """
 
         if chunk_size is None:
-            chunk_size = min(math.ceil(len(documents) / len(pool["processes"]) / 10), 1000)
+            chunk_size = min(math.ceil(len(documents) /
+                             len(pool["processes"]) / 10), 1000)
 
         logger.info("Chunk data into packages of size {}".format(chunk_size))
 
@@ -334,11 +349,13 @@ class EasyNMT:
         last_chunk_id = 0
 
         for start_idx in range(0, len(documents), chunk_size):
-            input_queue.put([last_chunk_id, documents[start_idx:start_idx+chunk_size], kwargs])
+            input_queue.put(
+                [last_chunk_id, documents[start_idx:start_idx+chunk_size], kwargs])
             last_chunk_id += 1
 
         output_queue = pool['output']
-        results_list = sorted([output_queue.get() for _ in tqdm.tqdm(range(last_chunk_id), total=last_chunk_id, unit_scale=chunk_size, smoothing=0, disable=not show_progress_bar)], key=lambda chunk: chunk[0])
+        results_list = sorted([output_queue.get() for _ in tqdm.tqdm(range(last_chunk_id), total=last_chunk_id,
+                              unit_scale=chunk_size, smoothing=0, disable=not show_progress_bar)], key=lambda chunk: chunk[0])
         translated = []
         for chunk in results_list:
             translated.extend(chunk[1])
@@ -350,16 +367,17 @@ class EasyNMT:
             batch.append(doc)
 
             if len(batch) >= chunk_size:
-                translated = self.translate(batch, show_progress_bar=False, **kwargs)
+                translated = self.translate(
+                    batch, show_progress_bar=False, **kwargs)
                 for trans_doc in translated:
                     yield trans_doc
                 batch = []
 
         if len(batch) > 0:
-            translated = self.translate(batch, show_progress_bar=False, **kwargs)
+            translated = self.translate(
+                batch, show_progress_bar=False, **kwargs)
             for trans_doc in translated:
                 yield trans_doc
-
 
     @staticmethod
     def stop_multi_process_pool(pool):
@@ -375,7 +393,6 @@ class EasyNMT:
 
         pool['input'].close()
         pool['output'].close()
-
 
     @staticmethod
     def _encode_multi_process_worker(target_device: str, model, input_queue, results_queue):
@@ -423,30 +440,34 @@ class EasyNMT:
         """
         if self._fasttext_lang_id is None:
             import fasttext
-            fasttext.FastText.eprint = lambda x: None   #Silence useless warning: https://github.com/facebookresearch/fastText/issues/1067
+            # Silence useless warning: https://github.com/facebookresearch/fastText/issues/1067
+            fasttext.FastText.eprint = lambda x: None
             model_path = os.path.join(self._cache_folder, 'lid.176.ftz')
             if not os.path.exists(model_path):
-                http_get('https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz', model_path)
+                http_get(
+                    'https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz', model_path)
             self._fasttext_lang_id = fasttext.load_model(model_path)
 
         return self._fasttext_lang_id.predict(text.lower().replace("\r\n", " ").replace("\n", " ").strip())[0][0].split('__')[-1]
 
-    def language_detection_langid(self, text: str) -> str:
+    @staticmethod
+    def language_detection_langid(text: str) -> str:
         import langid
         return langid.classify(text.lower().replace("\r\n", " ").replace("\n", " ").strip())[0]
 
-
-    def language_detection_langdetect(self, text: str) -> str:
+    @staticmethod
+    def language_detection_langdetect(text: str) -> str:
         import langdetect
         return langdetect.detect(text.lower().replace("\r\n", " ").replace("\n", " ").strip()).split("-")[0]
 
-
-    def sentence_splitting(self, text: str, lang: str = None):
+    @staticmethod
+    def sentence_splitting(text: str, lang: str = None):
         if lang == 'th':
             from thai_segmenter import sentence_segment
             sentences = [str(sent) for sent in sentence_segment(text)]
         elif lang in ['ar', 'jp', 'ko', 'zh']:
-            sentences = list(re.findall(u'[^!?。\.]+[!?。\.]*', text, flags=re.U))
+            sentences = list(re.findall(
+                u'[^!?。\.]+[!?。\.]*', text, flags=re.U))
         else:
             try:
                 nltk.data.find('tokenizers/punkt')
@@ -456,7 +477,6 @@ class EasyNMT:
             sentences = nltk.sent_tokenize(text)
 
         return sentences
-
 
     @property
     def lang_pairs(self) -> FrozenSet[str]:
@@ -486,7 +506,6 @@ class EasyNMT:
                 langs.add(target)
 
         return sorted(list(langs))
-
 
     def save(self, output_path):
         os.makedirs(output_path, exist_ok=True)
