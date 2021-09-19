@@ -316,7 +316,8 @@ class EasyNMT:
 
         return {'input': input_queue, 'output': output_queue, 'processes': processes}
 
-    def translate_multi_process(self, pool: Dict[str, object], documents: List[str], show_progress_bar: bool = True, chunk_size: int = None, **kwargs) -> List[str]:
+    @staticmethod
+    def translate_multi_process(pool: Dict[str, object], documents: List[str], show_progress_bar: bool = True, chunk_size: int = None, **kwargs) -> List[str]:
         """
         This method allows to run encode() on multiple GPUs. The sentences are chunked into smaller packages
         and sent to individual processes, which encode these on the different GPUs. This method is only suitable
@@ -431,17 +432,20 @@ class EasyNMT:
 
         return self._fasttext_lang_id.predict(text.lower().replace("\r\n", " ").replace("\n", " ").strip())[0][0].split('__')[-1]
 
-    def language_detection_langid(self, text: str) -> str:
+    @staticmethod
+    def language_detection_langid(text: str) -> str:
         import langid
         return langid.classify(text.lower().replace("\r\n", " ").replace("\n", " ").strip())[0]
 
 
-    def language_detection_langdetect(self, text: str) -> str:
+    @staticmethod
+    def language_detection_langdetect(text: str) -> str:
         import langdetect
         return langdetect.detect(text.lower().replace("\r\n", " ").replace("\n", " ").strip()).split("-")[0]
 
 
-    def sentence_splitting(self, text: str, lang: str = None):
+    @staticmethod
+    def sentence_splitting(text: str, lang: str = None):
         if lang == 'th':
             from thai_segmenter import sentence_segment
             sentences = [str(sent) for sent in sentence_segment(text)]
