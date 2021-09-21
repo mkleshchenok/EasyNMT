@@ -4,6 +4,7 @@ from .util import http_get, import_from_string, fullname
 import json
 from . import __DOWNLOAD_SERVER__
 from typing import List, Union, Dict, FrozenSet, Set, Iterable
+from collections import Counter
 import numpy as np
 import tqdm
 import nltk
@@ -118,7 +119,7 @@ class EasyNMT:
         :param sentence_splitter: Method used to split sentences. If None, uses the default self.sentence_splitting method
         :param document_language_detection: Perform language detection on document level
         :param kwargs: Optional arguments for the translator model
-        :return: Returns a string or a list of string with the translated documents
+        :return: When source_lang is given, returns a string or a list of string with the translated documents
         """
 
         # Method_args will store all passed arguments to method
@@ -150,11 +151,14 @@ class EasyNMT:
             for lng, ids in lang2id.items():
                 logger.info("Translate documents of language: {}".format(lng))
                 try:
-                    method_args['documents'] = [documents[idx] for idx in ids]
-                    method_args['source_lang'] = lng
-                    translated = self.translate(**method_args)
-                    for idx, translated_sentences in zip(ids, translated):
-                        output[idx] = translated_sentences
+                    if lng + '-' + target_lang in self._lang_pairs:
+                        method_args['documents'] = [documents[idx] for idx in ids]
+                        method_args['source_lang'] = lng
+                        translated = self.translate(**method_args)
+                        for idx, translated_sentences in zip(ids, translated):
+                            output[idx] = translated_sentences
+                    else:
+                        logger.info("Could not translate: {}".format(lng))
                 except Exception as e:
                     logger.warning("Exception: "+str(e))
                     raise e
@@ -162,7 +166,10 @@ class EasyNMT:
             if is_single_doc and len(output) == 1:
                 output = output[0]
 
-            return output
+            if source_lang:
+                return output
+            else:
+                return output, src_langs
 
         if perform_sentence_splitting:
             if sentence_splitter is None:
@@ -236,7 +243,7 @@ class EasyNMT:
         :param show_progress_bar: Show a progress bar
         :param beam_size: Size for beam search
         :param batch_size: Mini batch size
-        :return: List of translated sentences
+        :When source_lang is given, returns a list of translated sentences. When source_lang is not given, returns a tuple of translated sentences and detected languages
         """
 
         if source_lang == target_lang:
@@ -251,7 +258,7 @@ class EasyNMT:
         if source_lang is None:
             # Determine languages for sentences
             src_langs = [self.language_detection(sent) for sent in sentences]
-            logger.info("Detected languages: {}".format(set(src_langs)))
+            logger.info("Detected languages: {}".format(Counter(src_langs).most_common()))
 
             # Group by languages
             lang2id = {}
@@ -267,10 +274,15 @@ class EasyNMT:
                 logger.info("Translate sentences of language: {}".format(lng))
                 try:
                     grouped_sentences = [sentences[idx] for idx in ids]
-                    translated = self.translate_sentences(grouped_sentences, source_lang=lng, target_lang=target_lang,
-                                                          show_progress_bar=show_progress_bar, beam_size=beam_size, batch_size=batch_size, **kwargs)
-                    for idx, translated_sentences in zip(ids, translated):
-                        output[idx] = translated_sentences
+                    if lng + '-' + target_lang in self._lang_pairs:
+                        translated = self.translate_sentences(grouped_sentences, source_lang=lng,
+                                                              target_lang=target_lang,
+                                                              show_progress_bar=show_progress_bar, beam_size=beam_size,
+                                                              batch_size=batch_size, **kwargs)
+                        for idx, translated_sentences in zip(ids, translated):
+                            output[idx] = translated_sentences
+                    else:
+                        logger.info("Could not translate: {}".format(lng))
                 except Exception as e:
                     logger.warning("Exception: "+str(e))
                     raise e
@@ -295,7 +307,10 @@ class EasyNMT:
         if is_single_sentence:
             output = output[0]
 
-        return output
+        if source_lang:
+            return output
+        else:
+            return output, src_langs
 
     def start_multi_process_pool(self, target_devices: List[str] = None):
         """
@@ -429,7 +444,7 @@ class EasyNMT:
 
         raise Exception("No method for automatic language detection was found. Please install at least one of the following: fasttext (pip install fasttext), langid (pip install langid), or langdetect (pip install langdetect)")
 
-    def language_detection_fasttext(self, text: str) -> str:
+    def language_detection_fasttext(self, text: str, compressed_model=True) -> str:
         """
         Given a text, detects the language code and returns the ISO language code. It supports 176 languages. Uses
         the fasttext model for language detection:
@@ -439,13 +454,18 @@ class EasyNMT:
 
         """
         if self._fasttext_lang_id is None:
+            if compressed_model:
+                model_filename = 'lid.176.ftz'
+            else:
+                model_filename = 'lid.176.bin'
+
             import fasttext
             # Silence useless warning: https://github.com/facebookresearch/fastText/issues/1067
             fasttext.FastText.eprint = lambda x: None
-            model_path = os.path.join(self._cache_folder, 'lid.176.ftz')
+            model_path = os.path.join(self._cache_folder, model_filename)
             if not os.path.exists(model_path):
                 http_get(
-                    'https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz', model_path)
+                    f'https://dl.fbaipublicfiles.com/fasttext/supervised-models/{model_filename}', model_path)
             self._fasttext_lang_id = fasttext.load_model(model_path)
 
         return self._fasttext_lang_id.predict(text.lower().replace("\r\n", " ").replace("\n", " ").strip())[0][0].split('__')[-1]
